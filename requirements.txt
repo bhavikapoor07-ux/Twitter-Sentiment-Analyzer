@@ -1,0 +1,8 @@
+streamlit
+tensorflow
+numpy
+scikit-learn
+nltk
+matplotlib
+wordcloud
+Pillow
