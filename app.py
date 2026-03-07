@@ -246,7 +246,7 @@ def show_footer():
 
 @st.cache_resource
 def load_everything():
-    model = load_model("sentiment_model.h5")
+    model = load_model("sentiment_model_new")
     with open("tokenizer.pkl", "rb") as f:
         tokenizer = pickle.load(f)
     with open("label_encoder.pkl", "rb") as f:
