@@ -46,7 +46,7 @@ The app goes beyond basic sentiment classification by combining multiple AI-driv
 - View a **grouped bar chart** comparing confidence scores of both tweets
 
 ### 📜 Recent Analyses
-- Stores and displays the **last 5 analyzed tweets**
+- Stores and displays the **last 20 analyzed tweets**
 - Shows sentiment label, confidence percentage, and emoji emotion for each
 - Persists across page navigation within the same session
 
