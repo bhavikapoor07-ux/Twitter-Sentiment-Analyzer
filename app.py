@@ -381,6 +381,33 @@ st.sidebar.caption(f"🧠 Tweets Analyzed: {len(st.session_state.history)}")
 st.sidebar.caption("Model: Bidirectional LSTM | Accuracy: 86%")
 st.sidebar.caption(f"Theme: {'🌙 Dark' if st.session_state.dark_mode else '☀️ Light'}")
 
+# ── MIXED SENTIMENT DETECTION ─────────────────────────────────────────────────────
+
+def detect_mixed_sentiment(text):
+    text_lower = text.lower()
+
+    positive_words = [
+        "love", "like", "great", "good", "awesome",
+        "excellent", "amazing", "wonderful", "best",
+        "happy", "enjoy", "fantastic", "brilliant",
+        "perfect", "beautiful", "pleased", "glad"
+    ]
+
+    negative_words = [
+        "hate", "dislike", "bad", "terrible", "awful",
+        "horrible", "worst", "disappointed", "poor",
+        "boring", "annoying", "ugly", "sad", "boring",
+        "not like", "do not like", "don't like",
+        "not good", "not great", "not happy"
+    ]
+
+    pos_found = [w for w in positive_words if w in text_lower]
+    neg_found = [w for w in negative_words if w in text_lower]
+
+    if len(pos_found) > 0 and len(neg_found) > 0:
+        return True, pos_found, neg_found
+    return False, [], []
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 1 — MAIN ANALYSIS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -462,6 +489,27 @@ if page == "📊 Main Analysis":
                 st.info("🎭 This tweet may be sarcastic! Sentiment prediction might not be fully accurate.")
 
             st.markdown("---")
+
+            # ── MIXED SENTIMENT ───────────────────────────────────
+            is_mixed, pos_words, neg_words = detect_mixed_sentiment(tweet_input)
+            if is_mixed:
+                st.warning(
+                    f"⚠️ Mixed Sentiment Detected! This tweet contains "
+                    f"both positive and negative opinions. "
+                    f"The model prediction may not fully capture "
+                    f"the complete sentiment of this tweet."
+                )
+                st.markdown(
+                    f"<div style='background-color:{CARD_BG}; "
+                    f"border:1px solid {BORDER}; border-radius:10px; "
+                    f"padding:15px; margin-top:10px;'>"
+                    f"<p style='color:#00C853; margin:0;'>✅ Positive signals: "
+                    f"<b>{', '.join(pos_words)}</b></p>"
+                    f"<p style='color:#D50000; margin:4px 0 0 0;'>❌ Negative signals: "
+                    f"<b>{', '.join(neg_words)}</b></p>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
 
             # ── EMOJI EMOTION BREAKDOWN ───────────────────────────────────
             st.subheader("🎭 Emotion Breakdown")
