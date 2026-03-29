@@ -414,13 +414,7 @@ Only return the commentary text. Nothing else."""
         return response.text.strip()
 
     except Exception as e:
-        err = str(e)
-        if "API_KEY_INVALID" in err or "invalid" in err.lower():
-            return "❌ Invalid API key! Please check your Gemini API key in the sidebar."
-        elif "quota" in err.lower() or "limit" in err.lower():
-            return "⏳ Gemini is taking a breather... You've hit the rate limit. Try again in a moment!"
-        else:
-            return f"⚠️ Gemini couldn't connect: {err}"
+        return f"⚠️ ERROR: {str(e)}"
 
 
 def get_gemini_comparison_commentary(tweet1, sentiment1, tweet2, sentiment2, api_key):
@@ -449,13 +443,7 @@ Only return the commentary text. Nothing else."""
         return response.text.strip()
 
     except Exception as e:
-        err = str(e)
-        if "API_KEY_INVALID" in err or "invalid" in err.lower():
-            return "❌ Invalid API key! Please check your Gemini API key in the sidebar."
-        elif "quota" in err.lower() or "limit" in err.lower():
-            return "⏳ Gemini is taking a breather... You've hit the rate limit. Try again in a moment!"
-        else:
-            return f"⚠️ Gemini couldn't connect: {err}"
+        return f"⚠️ ERROR: {str(e)}"
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 
