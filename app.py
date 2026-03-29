@@ -11,7 +11,7 @@ from nltk.stem import PorterStemmer
 from wordcloud import WordCloud
 import nltk
 import time
-import anthropic
+import google.generativeai as genai
 
 nltk.download('stopwords', quiet=True)
 
@@ -112,7 +112,6 @@ footer {{visibility: hidden;}}
     background-color: transparent !important;
 }}
 
-/* ── EQUAL HEIGHT CARDS ── */
 [data-testid="stHorizontalBlock"] {{
     align-items: stretch !important;
 }}
@@ -214,11 +213,10 @@ section[data-testid="stSidebar"] > div {{
 }}
 </style>
 
-<!-- Floating Stars Container -->
 <div class="stars-container" id="stars-container"></div>
 """, unsafe_allow_html=True)
 
-# ── FLOATING STARS ANIMATION ──────────────────────────────────────────────────
+# ── FLOATING STARS ────────────────────────────────────────────────────────────
 
 components.html("""
 <script>
@@ -252,7 +250,7 @@ def show_footer():
         <hr style="margin-top:40px; opacity:0.3;">
         <div style="text-align:center; color:{CAPTION}; font-size:13px;">
         © 2026 Bhavi Kapoor • Twitter Sentiment Analyzer <br>
-        Built with Python | TensorFlow | Streamlit | Claude AI
+        Built with Python | TensorFlow | Streamlit | Gemini AI
         </div>
         """,
         unsafe_allow_html=True
@@ -282,7 +280,7 @@ ps = PorterStemmer()
 
 def clean_text(text):
     filtered_words = []
-    stemmed_words = []
+    stemmed_words  = []
     text = re.sub("[^a-zA-Z]", " ", text)
     text = text.lower().split()
     for word in text:
@@ -295,19 +293,19 @@ def clean_text(text):
 # ── PREDICTION FUNCTION ───────────────────────────────────────────────────────
 
 def predict_sentiment(tweet):
-    cleaned = clean_text(tweet)
+    cleaned  = clean_text(tweet)
     sequence = tokenizer.texts_to_sequences([cleaned])
-    padded = pad_sequences(sequence, maxlen=100, padding='post', truncating='post')
-    prediction = model.predict(padded)
+    padded   = pad_sequences(sequence, maxlen=100, padding='post', truncating='post')
+    prediction        = model.predict(padded)
     confidence_scores = prediction[0]
-    predicted_class = np.argmax(confidence_scores)
-    predicted_label = lb.classes_[predicted_class]
+    predicted_class   = np.argmax(confidence_scores)
+    predicted_label   = lb.classes_[predicted_class]
     return predicted_label, confidence_scores
 
 # ── EMOJI SENTIMENT DETECTION ─────────────────────────────────────────────────
 
 def detect_emoji_sentiment(text):
-    text_lower = text.lower()
+    text_lower    = text.lower()
     love_words    = ["love","adore","amazing","wonderful","beautiful","perfect","fantastic","lovely","cherish","affection","heart","crush","darling","adorable","sweet"]
     happy_words   = ["happy","great","awesome","excellent","good","glad","pleased","joy","delighted","enjoy","yay","thrilled","excited","smile","fun","brilliant","best"]
     angry_words   = ["angry","furious","hate","mad","rage","annoyed","irritated","disgusting","outraged","infuriated","livid","aggressive","horrible"]
@@ -338,8 +336,8 @@ def detect_sarcasm(text):
         "right right","sure thing","oh brilliant","how lovely","oh how nice"
     ]
     has_multiple_punctuation = bool(re.search(r'[!?]{2,}', text))
-    text_lower = text.lower()
-    has_sarcasm_phrase = any(phrase in text_lower for phrase in sarcasm_patterns)
+    text_lower               = text.lower()
+    has_sarcasm_phrase       = any(phrase in text_lower for phrase in sarcasm_patterns)
     return has_sarcasm_phrase or has_multiple_punctuation
 
 # ── TOXIC LANGUAGE DETECTOR ───────────────────────────────────────────────────
@@ -351,7 +349,7 @@ def detect_toxic(text):
         "terrible","despise","worst","ugly","nasty","shut up","get lost",
         "go away","nobody cares","scam","fraud","liar","fake","disgrace","harm"
     ]
-    text_lower = text.lower()
+    text_lower  = text.lower()
     found_words = [w for w in toxic_words if re.search(rf"\b{re.escape(w)}\b", text_lower)]
     return len(found_words) > 0, found_words
 
@@ -375,35 +373,26 @@ def get_color(sentiment):
     }
     return mapping.get(sentiment, "#2196F3")
 
-# ── MIXED SENTIMENT DETECTION ─────────────────────────────────────────────────────
+# ── MIXED SENTIMENT DETECTION ─────────────────────────────────────────────────
 
 def detect_mixed_sentiment(text):
-    text_lower = text.lower()
-    positive_words = [
-        "love", "like", "great", "good", "awesome",
-        "excellent", "amazing", "wonderful", "best",
-        "happy", "enjoy", "fantastic", "brilliant",
-        "perfect", "beautiful", "pleased", "glad"
-    ]
-    negative_words = [
-        "hate", "dislike", "bad", "terrible", "awful",
-        "horrible", "worst", "disappointed", "poor",
-        "boring", "annoying", "ugly", "sad", "boring",
-        "not like", "do not like", "don't like",
-        "not good", "not great", "not happy"
-    ]
+    text_lower     = text.lower()
+    positive_words = ["love","like","great","good","awesome","excellent","amazing","wonderful","best","happy","enjoy","fantastic","brilliant","perfect","beautiful","pleased","glad"]
+    negative_words = ["hate","dislike","bad","terrible","awful","horrible","worst","disappointed","poor","boring","annoying","ugly","sad","not like","do not like","don't like","not good","not great","not happy"]
     pos_found = [w for w in positive_words if w in text_lower]
     neg_found = [w for w in negative_words if w in text_lower]
     if len(pos_found) > 0 and len(neg_found) > 0:
         return True, pos_found, neg_found
     return False, [], []
 
-# ── ✨ CLAUDE AI WITTY COMMENTARY ─────────────────────────────────────────────
+# ── ✨ GEMINI AI WITTY COMMENTARY ─────────────────────────────────────────────
 
-def get_claude_commentary(tweet, sentiment, confidence, api_key):
-    """Call Claude API and return witty commentary about the tweet."""
+def get_gemini_commentary(tweet, sentiment, confidence, api_key):
+    """Call Gemini API and return witty commentary about the tweet."""
     try:
-        client = anthropic.Anthropic(api_key=api_key)
+        genai.configure(api_key=api_key)
+        model_ai = genai.GenerativeModel("gemini-1.5-flash")
+
         prompt = f"""You are a witty, fun, and slightly sarcastic AI tweet analyst with a great sense of humor and a very cool personality.
 A tweet has just been analyzed and the model detected its sentiment.
 
@@ -421,24 +410,25 @@ Your job: Write a short, fun, witty commentary (3-5 sentences) about this tweet 
 
 Only return the commentary text. Nothing else."""
 
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return message.content[0].text.strip()
-    except anthropic.AuthenticationError:
-        return "❌ Invalid API key! Check your key in the sidebar."
-    except anthropic.RateLimitError:
-        return "⏳ Claude is taking a breather... try again in a moment!"
+        response = model_ai.generate_content(prompt)
+        return response.text.strip()
+
     except Exception as e:
-        return f"⚠️ Claude couldn't connect: {str(e)}"
+        err = str(e)
+        if "API_KEY_INVALID" in err or "invalid" in err.lower():
+            return "❌ Invalid API key! Please check your Gemini API key in the sidebar."
+        elif "quota" in err.lower() or "limit" in err.lower():
+            return "⏳ Gemini is taking a breather... You've hit the rate limit. Try again in a moment!"
+        else:
+            return f"⚠️ Gemini couldn't connect: {err}"
 
 
-def get_claude_comparison_commentary(tweet1, sentiment1, tweet2, sentiment2, api_key):
-    """Claude gives witty commentary comparing two tweets."""
+def get_gemini_comparison_commentary(tweet1, sentiment1, tweet2, sentiment2, api_key):
+    """Gemini gives witty commentary comparing two tweets."""
     try:
-        client = anthropic.Anthropic(api_key=api_key)
+        genai.configure(api_key=api_key)
+        model_ai = genai.GenerativeModel("gemini-1.5-flash")
+
         prompt = f"""You are a witty, fun AI tweet analyst who just compared two tweets side by side.
 
 Tweet 1: "{tweet1}"
@@ -455,18 +445,17 @@ Write a short, fun, witty commentary (3-5 sentences) comparing the vibes of thes
 
 Only return the commentary text. Nothing else."""
 
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return message.content[0].text.strip()
-    except anthropic.AuthenticationError:
-        return "❌ Invalid API key! Check your key in the sidebar."
-    except anthropic.RateLimitError:
-        return "⏳ Claude is taking a breather... try again in a moment!"
+        response = model_ai.generate_content(prompt)
+        return response.text.strip()
+
     except Exception as e:
-        return f"⚠️ Claude couldn't connect: {str(e)}"
+        err = str(e)
+        if "API_KEY_INVALID" in err or "invalid" in err.lower():
+            return "❌ Invalid API key! Please check your Gemini API key in the sidebar."
+        elif "quota" in err.lower() or "limit" in err.lower():
+            return "⏳ Gemini is taking a breather... You've hit the rate limit. Try again in a moment!"
+        else:
+            return f"⚠️ Gemini couldn't connect: {err}"
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 
@@ -480,19 +469,19 @@ page = st.sidebar.radio(
 
 st.sidebar.markdown("---")
 
-# ── ✨ CLAUDE API KEY INPUT IN SIDEBAR ────────────────────────────────────────
-st.sidebar.subheader("🤖 Claude AI Commentary")
+# ── ✨ GEMINI API KEY INPUT IN SIDEBAR ────────────────────────────────────────
+st.sidebar.subheader("🤖 Gemini AI Commentary")
 api_key = st.sidebar.text_input(
-    "Anthropic API Key",
+    "Google Gemini API Key",
     type="password",
-    placeholder="sk-ant-...",
-    help="Enter your Anthropic API key to enable witty AI commentary on tweets."
+    placeholder="AIza...",
+    help="Enter your free Gemini API key to enable witty AI commentary on tweets."
 )
 if api_key:
-    st.sidebar.success("✅ Claude AI is ready!")
+    st.sidebar.success("✅ Gemini AI is ready!")
 else:
-    st.sidebar.caption("🔑 Add your key to unlock AI commentary.")
-st.sidebar.caption("Get your key at [console.anthropic.com](https://console.anthropic.com)")
+    st.sidebar.caption("🔑 Add your free Gemini key to unlock AI commentary.")
+st.sidebar.caption("Get your free key at [aistudio.google.com](https://aistudio.google.com)")
 
 st.sidebar.markdown("---")
 
@@ -526,7 +515,6 @@ if page == "📊 Main Analysis":
 
         if tweet_input.strip() == "":
             st.warning("⚠️ Please enter a tweet before analyzing!")
-
         else:
             is_toxic, toxic_found = detect_toxic(tweet_input)
 
@@ -542,7 +530,7 @@ if page == "📊 Main Analysis":
                 st.stop()
 
             with st.spinner("🔍 Analyzing sentiment... please wait!"):
-                label, scores = predict_sentiment(tweet_input)
+                label, scores           = predict_sentiment(tweet_input)
                 emoji_result, emoji_scores = detect_emoji_sentiment(tweet_input)
 
             st.session_state.history.append({
@@ -555,10 +543,8 @@ if page == "📊 Main Analysis":
                 st.session_state.history.pop(0)
 
             st.markdown("---")
-
-            # ── RESULT — side by side ─────────────────────────────────────
             st.subheader("📊 Result")
-            color = get_color(label)
+            color          = get_color(label)
             confidence_val = float(np.max(scores)) * 100
 
             col_sent, col_emoji = st.columns(2)
@@ -588,11 +574,11 @@ if page == "📊 Main Analysis":
 
             st.markdown("---")
 
-            # ── ✨ CLAUDE AI WITTY COMMENTARY ─────────────────────────────
-            st.subheader("🤖 Claude's Take on This")
+            # ── ✨ GEMINI AI WITTY COMMENTARY ─────────────────────────────
+            st.subheader("🤖 Gemini's Take on This")
             if api_key:
-                with st.spinner("✨ Claude is cooking up something witty..."):
-                    commentary = get_claude_commentary(tweet_input, label, confidence_val, api_key)
+                with st.spinner("✨ Gemini is cooking up something witty..."):
+                    commentary = get_gemini_commentary(tweet_input, label, confidence_val, api_key)
                 st.markdown(
                     f"<div class='ai-commentary-box'>💬 {commentary}</div>",
                     unsafe_allow_html=True
@@ -600,30 +586,21 @@ if page == "📊 Main Analysis":
             else:
                 st.markdown(
                     f"<div style='background-color:{CARD_BG}; border:1px dashed {BORDER}; border-radius:10px; padding:15px; text-align:center; opacity:0.7;'>"
-                    f"<p style='color:{SUBTEXT}; margin:0;'>🔑 Add your Anthropic API key in the sidebar to unlock witty AI commentary!</p>"
+                    f"<p style='color:{SUBTEXT}; margin:0;'>🔑 Add your free Gemini API key in the sidebar to unlock witty AI commentary!</p>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
 
             st.markdown("---")
 
-            # ── MIXED SENTIMENT ───────────────────────────────────
+            # ── MIXED SENTIMENT ───────────────────────────────────────────
             is_mixed, pos_words, neg_words = detect_mixed_sentiment(tweet_input)
             if is_mixed:
-                st.warning(
-                    f"⚠️ Mixed Sentiment Detected! This tweet contains "
-                    f"both positive and negative opinions. "
-                    f"The model prediction may not fully capture "
-                    f"the complete sentiment of this tweet."
-                )
+                st.warning("⚠️ Mixed Sentiment Detected! This tweet contains both positive and negative opinions.")
                 st.markdown(
-                    f"<div style='background-color:{CARD_BG}; "
-                    f"border:1px solid {BORDER}; border-radius:10px; "
-                    f"padding:15px; margin-top:10px;'>"
-                    f"<p style='color:#00C853; margin:0;'>✅ Positive signals: "
-                    f"<b>{', '.join(pos_words)}</b></p>"
-                    f"<p style='color:#D50000; margin:4px 0 0 0;'>❌ Negative signals: "
-                    f"<b>{', '.join(neg_words)}</b></p>"
+                    f"<div style='background-color:{CARD_BG}; border:1px solid {BORDER}; border-radius:10px; padding:15px; margin-top:10px;'>"
+                    f"<p style='color:#00C853; margin:0;'>✅ Positive signals: <b>{', '.join(pos_words)}</b></p>"
+                    f"<p style='color:#D50000; margin:4px 0 0 0;'>❌ Negative signals: <b>{', '.join(neg_words)}</b></p>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
@@ -658,12 +635,10 @@ if page == "📊 Main Analysis":
                 fig.patch.set_facecolor(BG)
                 ax.set_facecolor(CHART_BG)
                 bars = ax.bar(classes, scores * 100, color=colors, edgecolor=ACCENT, linewidth=0.8)
-
                 for bar, score in zip(bars, scores):
                     ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1,
                         f"{score * 100:.1f}%", ha='center', va='bottom',
                         fontweight='bold', fontsize=11, color=SUBTEXT)
-
                 ax.set_ylabel("Confidence (%)", fontsize=12, color=SUBTEXT)
                 ax.set_xlabel("Sentiment Class", fontsize=12, color=SUBTEXT)
                 ax.set_title("Model Confidence per Sentiment Class", fontsize=14, color=TITLE_COLOR)
@@ -696,13 +671,9 @@ elif page == "📜 Recent Analyses":
             tweet_emoji = item.get("emoji", "")
             st.markdown(
                 f"""
-                <div style="
-                    background-color: {CARD_BG};
-                    border-left: 5px solid {color};
-                    padding: 12px 18px; border-radius: 8px;
-                    margin-bottom: 12px;
-                    box-shadow: 0 0 10px {ACCENT}33;
-                ">
+                <div style="background-color:{CARD_BG}; border-left:5px solid {color};
+                    padding:12px 18px; border-radius:8px; margin-bottom:12px;
+                    box-shadow:0 0 10px {ACCENT}33;">
                     <p style="color:{SUBTEXT}; margin:0; font-size:15px; font-family:'Share Tech Mono',monospace;">
                         🐦 <i>"{item['tweet'][:100]}{'...' if len(item['tweet'])>100 else ''}"</i>
                     </p>
@@ -735,14 +706,13 @@ elif page == "🥧 Sentiment Pie Chart":
                 sentiment_counts[item["label"]] += 1
 
         filtered = {k: v for k, v in sentiment_counts.items() if v > 0}
-        labels = list(filtered.keys())
-        sizes  = list(filtered.values())
-        colors = [get_color(label) for label in labels]
+        labels   = list(filtered.keys())
+        sizes    = list(filtered.values())
+        colors   = [get_color(label) for label in labels]
 
         fig, ax = plt.subplots(figsize=(7, 7))
         fig.patch.set_facecolor(BG)
         ax.set_facecolor(BG)
-
         wedges, texts, autotexts = ax.pie(
             sizes, labels=labels, colors=colors, autopct='%1.1f%%',
             startangle=140, wedgeprops=dict(edgecolor=ACCENT, linewidth=2)
@@ -751,7 +721,6 @@ elif page == "🥧 Sentiment Pie Chart":
             text.set_fontsize(13); text.set_fontweight('bold'); text.set_color(SUBTEXT)
         for autotext in autotexts:
             autotext.set_fontsize(12); autotext.set_color('white'); autotext.set_fontweight('bold')
-
         ax.set_title("Sentiment Distribution", fontsize=16, fontweight='bold', pad=20, color=TITLE_COLOR)
         st.pyplot(fig)
 
@@ -786,13 +755,10 @@ elif page == "☁️ Word Cloud":
         else:
             wc_bg       = "#0a0010" if st.session_state.dark_mode else "#ffffff"
             wc_colormap = "Purples"
-
             wordcloud = WordCloud(
-                width=900, height=450,
-                background_color=wc_bg,
-                colormap=wc_colormap,
-                max_words=100, min_font_size=10, max_font_size=120,
-                collocations=False
+                width=900, height=450, background_color=wc_bg,
+                colormap=wc_colormap, max_words=100,
+                min_font_size=10, max_font_size=120, collocations=False
             ).generate(cleaned_text)
 
             fig, ax = plt.subplots(figsize=(12, 6))
@@ -843,8 +809,8 @@ elif page == "⚖️ Compare Two Tweets":
             with st.spinner("⚖️ Comparing tweets... please wait!"):
                 label1, scores1 = predict_sentiment(tweet1)
                 label2, scores2 = predict_sentiment(tweet2)
-                emoji1, _ = detect_emoji_sentiment(tweet1)
-                emoji2, _ = detect_emoji_sentiment(tweet2)
+                emoji1, _       = detect_emoji_sentiment(tweet1)
+                emoji2, _       = detect_emoji_sentiment(tweet2)
 
             st.markdown("---")
             st.subheader("📊 Results")
@@ -898,12 +864,12 @@ elif page == "⚖️ Compare Two Tweets":
             else:
                 st.success("🏆 Tweet 2 has a higher positivity score!")
 
-            # ── ✨ CLAUDE AI COMPARISON COMMENTARY ────────────────────────
+            # ── ✨ GEMINI AI COMPARISON COMMENTARY ────────────────────────
             st.markdown("---")
-            st.subheader("🤖 Claude's Commentary on the Battle")
+            st.subheader("🤖 Gemini's Commentary on the Battle")
             if api_key:
-                with st.spinner("✨ Claude is judging both tweets..."):
-                    comparison_commentary = get_claude_comparison_commentary(
+                with st.spinner("✨ Gemini is judging both tweets..."):
+                    comparison_commentary = get_gemini_comparison_commentary(
                         tweet1, label1, tweet2, label2, api_key
                     )
                 st.markdown(
@@ -913,7 +879,7 @@ elif page == "⚖️ Compare Two Tweets":
             else:
                 st.markdown(
                     f"<div style='background-color:{CARD_BG}; border:1px dashed {BORDER}; border-radius:10px; padding:15px; text-align:center; opacity:0.7;'>"
-                    f"<p style='color:{SUBTEXT}; margin:0;'>🔑 Add your Anthropic API key in the sidebar to unlock Claude's witty battle commentary!</p>"
+                    f"<p style='color:{SUBTEXT}; margin:0;'>🔑 Add your free Gemini API key in the sidebar to unlock AI battle commentary!</p>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
@@ -922,8 +888,8 @@ elif page == "⚖️ Compare Two Tweets":
             st.subheader("📉 Confidence Comparison Chart")
 
             classes = list(lb.classes_)
-            x = np.arange(len(classes))
-            width = 0.35
+            x       = np.arange(len(classes))
+            width   = 0.35
 
             fig, ax = plt.subplots(figsize=(10, 5))
             fig.patch.set_facecolor(BG)
