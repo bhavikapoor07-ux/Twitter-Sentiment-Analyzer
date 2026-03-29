@@ -11,6 +11,7 @@ from nltk.stem import PorterStemmer
 from wordcloud import WordCloud
 import nltk
 import time
+import anthropic
 
 nltk.download('stopwords', quiet=True)
 
@@ -196,6 +197,21 @@ hr {{ border-color: {HR_COLOR} !important; opacity: 0.4; }}
 section[data-testid="stSidebar"] > div {{
     background-color: {SIDEBAR_BG} !important;
 }}
+
+/* ── AI COMMENTARY BOX ── */
+.ai-commentary-box {{
+    background: linear-gradient(135deg, rgba(123,47,255,0.15), rgba(191,127,255,0.08));
+    border: 1px solid #7b2fff;
+    border-left: 5px solid #bf7fff;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-top: 10px;
+    box-shadow: 0 0 20px #7b2fff33;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    line-height: 1.7;
+    color: #e0ccff;
+}}
 </style>
 
 <!-- Floating Stars Container -->
@@ -236,7 +252,7 @@ def show_footer():
         <hr style="margin-top:40px; opacity:0.3;">
         <div style="text-align:center; color:{CAPTION}; font-size:13px;">
         © 2026 Bhavi Kapoor • Twitter Sentiment Analyzer <br>
-        Built with Python | TensorFlow | Streamlit
+        Built with Python | TensorFlow | Streamlit | Claude AI
         </div>
         """,
         unsafe_allow_html=True
@@ -359,6 +375,99 @@ def get_color(sentiment):
     }
     return mapping.get(sentiment, "#2196F3")
 
+# ── MIXED SENTIMENT DETECTION ─────────────────────────────────────────────────────
+
+def detect_mixed_sentiment(text):
+    text_lower = text.lower()
+    positive_words = [
+        "love", "like", "great", "good", "awesome",
+        "excellent", "amazing", "wonderful", "best",
+        "happy", "enjoy", "fantastic", "brilliant",
+        "perfect", "beautiful", "pleased", "glad"
+    ]
+    negative_words = [
+        "hate", "dislike", "bad", "terrible", "awful",
+        "horrible", "worst", "disappointed", "poor",
+        "boring", "annoying", "ugly", "sad", "boring",
+        "not like", "do not like", "don't like",
+        "not good", "not great", "not happy"
+    ]
+    pos_found = [w for w in positive_words if w in text_lower]
+    neg_found = [w for w in negative_words if w in text_lower]
+    if len(pos_found) > 0 and len(neg_found) > 0:
+        return True, pos_found, neg_found
+    return False, [], []
+
+# ── ✨ CLAUDE AI WITTY COMMENTARY ─────────────────────────────────────────────
+
+def get_claude_commentary(tweet, sentiment, confidence, api_key):
+    """Call Claude API and return witty commentary about the tweet."""
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        prompt = f"""You are a witty, fun, and slightly sarcastic AI tweet analyst with a great sense of humor and a very cool personality.
+A tweet has just been analyzed and the model detected its sentiment.
+
+Tweet: "{tweet}"
+Detected Sentiment: {sentiment}
+Model Confidence: {confidence:.1f}%
+
+Your job: Write a short, fun, witty commentary (3-5 sentences) about this tweet and its vibe.
+- Be entertaining, a little cheeky, but always kind
+- Use emojis naturally throughout
+- Talk ABOUT the tweet and the person's energy — don't address them directly
+- Mention the sentiment in a creative way (don't just say "this is positive")
+- If confidence is below 60%, poke a little fun at how confusing the tweet is
+- Keep it punchy and conversational — like a cool friend reacting to the tweet
+
+Only return the commentary text. Nothing else."""
+
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return message.content[0].text.strip()
+    except anthropic.AuthenticationError:
+        return "❌ Invalid API key! Check your key in the sidebar."
+    except anthropic.RateLimitError:
+        return "⏳ Claude is taking a breather... try again in a moment!"
+    except Exception as e:
+        return f"⚠️ Claude couldn't connect: {str(e)}"
+
+
+def get_claude_comparison_commentary(tweet1, sentiment1, tweet2, sentiment2, api_key):
+    """Claude gives witty commentary comparing two tweets."""
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        prompt = f"""You are a witty, fun AI tweet analyst who just compared two tweets side by side.
+
+Tweet 1: "{tweet1}"
+Sentiment 1: {sentiment1}
+
+Tweet 2: "{tweet2}"
+Sentiment 2: {sentiment2}
+
+Write a short, fun, witty commentary (3-5 sentences) comparing the vibes of these two tweets.
+- Be entertaining and cheeky
+- Use emojis naturally
+- Contrast their energies in a funny or dramatic way
+- Keep it punchy — like a sports commentator calling a match between two tweets
+
+Only return the commentary text. Nothing else."""
+
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return message.content[0].text.strip()
+    except anthropic.AuthenticationError:
+        return "❌ Invalid API key! Check your key in the sidebar."
+    except anthropic.RateLimitError:
+        return "⏳ Claude is taking a breather... try again in a moment!"
+    except Exception as e:
+        return f"⚠️ Claude couldn't connect: {str(e)}"
+
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 
 st.sidebar.title("🐦 Menu")
@@ -371,6 +480,22 @@ page = st.sidebar.radio(
 
 st.sidebar.markdown("---")
 
+# ── ✨ CLAUDE API KEY INPUT IN SIDEBAR ────────────────────────────────────────
+st.sidebar.subheader("🤖 Claude AI Commentary")
+api_key = st.sidebar.text_input(
+    "Anthropic API Key",
+    type="password",
+    placeholder="sk-ant-...",
+    help="Enter your Anthropic API key to enable witty AI commentary on tweets."
+)
+if api_key:
+    st.sidebar.success("✅ Claude AI is ready!")
+else:
+    st.sidebar.caption("🔑 Add your key to unlock AI commentary.")
+st.sidebar.caption("Get your key at [console.anthropic.com](https://console.anthropic.com)")
+
+st.sidebar.markdown("---")
+
 theme_label = "☀️ Switch to Light Mode" if st.session_state.dark_mode else "🌙 Switch to Dark Mode"
 if st.sidebar.button(theme_label, use_container_width=True):
     st.session_state.dark_mode = not st.session_state.dark_mode
@@ -380,33 +505,6 @@ st.sidebar.markdown("---")
 st.sidebar.caption(f"🧠 Tweets Analyzed: {len(st.session_state.history)}")
 st.sidebar.caption("Model: Bidirectional LSTM | Accuracy: 86%")
 st.sidebar.caption(f"Theme: {'🌙 Dark' if st.session_state.dark_mode else '☀️ Light'}")
-
-# ── MIXED SENTIMENT DETECTION ─────────────────────────────────────────────────────
-
-def detect_mixed_sentiment(text):
-    text_lower = text.lower()
-
-    positive_words = [
-        "love", "like", "great", "good", "awesome",
-        "excellent", "amazing", "wonderful", "best",
-        "happy", "enjoy", "fantastic", "brilliant",
-        "perfect", "beautiful", "pleased", "glad"
-    ]
-
-    negative_words = [
-        "hate", "dislike", "bad", "terrible", "awful",
-        "horrible", "worst", "disappointed", "poor",
-        "boring", "annoying", "ugly", "sad", "boring",
-        "not like", "do not like", "don't like",
-        "not good", "not great", "not happy"
-    ]
-
-    pos_found = [w for w in positive_words if w in text_lower]
-    neg_found = [w for w in negative_words if w in text_lower]
-
-    if len(pos_found) > 0 and len(neg_found) > 0:
-        return True, pos_found, neg_found
-    return False, [], []
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 1 — MAIN ANALYSIS
@@ -443,7 +541,6 @@ if page == "📊 Main Analysis":
                 )
                 st.stop()
 
-            # ── SPINNER — PAGE 1 ──────────────────────────────────────────
             with st.spinner("🔍 Analyzing sentiment... please wait!"):
                 label, scores = predict_sentiment(tweet_input)
                 emoji_result, emoji_scores = detect_emoji_sentiment(tweet_input)
@@ -462,6 +559,7 @@ if page == "📊 Main Analysis":
             # ── RESULT — side by side ─────────────────────────────────────
             st.subheader("📊 Result")
             color = get_color(label)
+            confidence_val = float(np.max(scores)) * 100
 
             col_sent, col_emoji = st.columns(2)
 
@@ -470,7 +568,7 @@ if page == "📊 Main Analysis":
                     f"<div style='background-color:{CARD_BG}; border:1px solid {BORDER}; border-radius:10px; padding:15px; text-align:center; box-shadow:0 0 12px {ACCENT}33;'>"
                     f"<p style='color:{SUBTEXT}; margin:0; font-size:13px;'>🤖 Model Sentiment</p>"
                     f"<h2 style='color:{color}; text-shadow:0 0 20px {color}; margin:8px 0;'>{get_emoji(label)}</h2>"
-                    f"<p style='color:{color}; margin:0; font-size:14px;'>{float(np.max(scores))*100:.1f}% confident</p>"
+                    f"<p style='color:{color}; margin:0; font-size:14px;'>{confidence_val:.1f}% confident</p>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
@@ -487,6 +585,25 @@ if page == "📊 Main Analysis":
 
             if detect_sarcasm(tweet_input):
                 st.info("🎭 This tweet may be sarcastic! Sentiment prediction might not be fully accurate.")
+
+            st.markdown("---")
+
+            # ── ✨ CLAUDE AI WITTY COMMENTARY ─────────────────────────────
+            st.subheader("🤖 Claude's Take on This")
+            if api_key:
+                with st.spinner("✨ Claude is cooking up something witty..."):
+                    commentary = get_claude_commentary(tweet_input, label, confidence_val, api_key)
+                st.markdown(
+                    f"<div class='ai-commentary-box'>💬 {commentary}</div>",
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    f"<div style='background-color:{CARD_BG}; border:1px dashed {BORDER}; border-radius:10px; padding:15px; text-align:center; opacity:0.7;'>"
+                    f"<p style='color:{SUBTEXT}; margin:0;'>🔑 Add your Anthropic API key in the sidebar to unlock witty AI commentary!</p>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
 
             st.markdown("---")
 
@@ -723,7 +840,6 @@ elif page == "⚖️ Compare Two Tweets":
                     st.error(f"🚨 Tweet 2 contains toxic words: **{', '.join(toxic_found2)}**")
                 st.stop()
 
-            # ── SPINNER — PAGE 5 ──────────────────────────────────────────
             with st.spinner("⚖️ Comparing tweets... please wait!"):
                 label1, scores1 = predict_sentiment(tweet1)
                 label2, scores2 = predict_sentiment(tweet2)
@@ -781,6 +897,26 @@ elif page == "⚖️ Compare Two Tweets":
                 st.success("🏆 Tweet 1 has a higher positivity score!")
             else:
                 st.success("🏆 Tweet 2 has a higher positivity score!")
+
+            # ── ✨ CLAUDE AI COMPARISON COMMENTARY ────────────────────────
+            st.markdown("---")
+            st.subheader("🤖 Claude's Commentary on the Battle")
+            if api_key:
+                with st.spinner("✨ Claude is judging both tweets..."):
+                    comparison_commentary = get_claude_comparison_commentary(
+                        tweet1, label1, tweet2, label2, api_key
+                    )
+                st.markdown(
+                    f"<div class='ai-commentary-box'>⚔️ {comparison_commentary}</div>",
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    f"<div style='background-color:{CARD_BG}; border:1px dashed {BORDER}; border-radius:10px; padding:15px; text-align:center; opacity:0.7;'>"
+                    f"<p style='color:{SUBTEXT}; margin:0;'>🔑 Add your Anthropic API key in the sidebar to unlock Claude's witty battle commentary!</p>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
 
             st.markdown("---")
             st.subheader("📉 Confidence Comparison Chart")
