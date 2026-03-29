@@ -391,7 +391,7 @@ def get_gemini_commentary(tweet, sentiment, confidence, api_key):
     """Call Gemini API and return witty commentary about the tweet."""
     try:
         genai.configure(api_key=api_key)
-        model_ai = genai.GenerativeModel("gemini-1.5-flash-latest")
+        model_ai = genai.GenerativeModel("models/gemini-2.0-flash-lite")
 
         prompt = f"""You are a witty, fun, and slightly sarcastic AI tweet analyst with a great sense of humor and a very cool personality.
 A tweet has just been analyzed and the model detected its sentiment.
@@ -421,7 +421,7 @@ def get_gemini_comparison_commentary(tweet1, sentiment1, tweet2, sentiment2, api
     """Gemini gives witty commentary comparing two tweets."""
     try:
         genai.configure(api_key=api_key)
-        model_ai = genai.GenerativeModel("gemini-1.5-flash-latest")
+        model_ai = genai.GenerativeModel("models/gemini-2.0-flash-lite")
 
         prompt = f"""You are a witty, fun AI tweet analyst who just compared two tweets side by side.
 
