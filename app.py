@@ -11,6 +11,8 @@ from nltk.stem import PorterStemmer
 from wordcloud import WordCloud
 import nltk
 import time
+from transformers import pipeline
+
 
 nltk.download('stopwords', quiet=True)
 
@@ -159,6 +161,20 @@ hr {{ border-color: {HR_COLOR} !important; opacity: 0.4; }}
 ::-webkit-scrollbar-thumb:hover {{ background: #cc99ff; }}
 
 section[data-testid="stSidebar"] > div {{ background-color: {SIDEBAR_BG} !important; }}
+
+.ai-commentary-box {{
+    background: linear-gradient(135deg, rgba(123,47,255,0.15), rgba(191,127,255,0.08));
+    border: 1px solid #7b2fff;
+    border-left: 5px solid #bf7fff;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-top: 10px;
+    box-shadow: 0 0 20px #7b2fff33;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    line-height: 1.7;
+    color: #e0ccff;
+}}
 </style>
 
 <div class="stars-container" id="stars-container"></div>
@@ -192,7 +208,7 @@ def show_footer():
         f"""<hr style="margin-top:40px; opacity:0.3;">
         <div style="text-align:center; color:{CAPTION}; font-size:13px;">
         © 2026 Bhavi Kapoor • Twitter Sentiment Analyzer <br>
-        Built with Python | TensorFlow | Streamlit
+        Built with Python | TensorFlow | Streamlit | Flan-T5 AI
         </div>""", unsafe_allow_html=True)
 
 @st.cache_resource
@@ -267,6 +283,30 @@ def get_emoji(sentiment):
 def get_color(sentiment):
     return {"Positive":"#00C853","Negative":"#D50000","Neutral":"#FFD600","Irrelevant":"#9E9E9E"}.get(sentiment, "#2196F3")
 
+# ── ✨ FREE AI COMMENTARY (FLAN-T5) ───────────────────────────────────────────
+
+@st.cache_resource
+def load_ai_model():
+    return pipeline("text2text-generation", model="google/flan-t5-base")
+
+def get_ai_commentary(tweet, sentiment):
+    try:
+        ai = load_ai_model()
+        prompt = f"Write a short funny and witty 2-sentence comment about this tweet that has a {sentiment} sentiment: '{tweet}'"
+        result = ai(prompt, max_new_tokens=80, do_sample=True, temperature=0.9)
+        return result[0]["generated_text"].strip()
+    except Exception as e:
+        return f"⚠️ AI model error: {str(e)}"
+
+def get_ai_comparison_commentary(tweet1, sentiment1, tweet2, sentiment2):
+    try:
+        ai = load_ai_model()
+        prompt = f"Compare these two tweets in a funny way. Tweet 1 is {sentiment1}: '{tweet1}'. Tweet 2 is {sentiment2}: '{tweet2}'."
+        result = ai(prompt, max_new_tokens=80, do_sample=True, temperature=0.9)
+        return result[0]["generated_text"].strip()
+    except Exception as e:
+        return f"⚠️ AI model error: {str(e)}"
+
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 
 st.sidebar.title("🐦 Menu")
@@ -321,6 +361,17 @@ if page == "📊 Main Analysis":
 
             if detect_sarcasm(tweet_input):
                 st.info("🎭 This tweet may be sarcastic! Sentiment prediction might not be fully accurate.")
+
+            st.markdown("---")
+
+            # ── ✨ FREE AI COMMENTARY ─────────────────────────────────────
+            st.subheader("🤖 AI's Take on This")
+            with st.spinner("✨ AI is thinking of something witty..."):
+                commentary = get_ai_commentary(tweet_input, label)
+            st.markdown(
+                f"<div style='background:linear-gradient(135deg,rgba(123,47,255,0.15),rgba(191,127,255,0.08)); border:1px solid #7b2fff; border-left:5px solid #bf7fff; border-radius:12px; padding:18px 20px; margin-top:10px; box-shadow:0 0 20px #7b2fff33; font-family:Share Tech Mono,monospace; font-size:15px; line-height:1.7; color:#e0ccff;'>💬 {commentary}</div>",
+                unsafe_allow_html=True
+            )
 
             st.markdown("---")
             is_mixed, pos_words, neg_words = detect_mixed_sentiment(tweet_input)
@@ -488,6 +539,16 @@ elif page == "⚖️ Compare Two Tweets":
             elif label2 == "Positive" and label1 != "Positive": st.success("🏆 Tweet 2 is more Positive!")
             elif pos_score1 > pos_score2: st.success("🏆 Tweet 1 has a higher positivity score!")
             else: st.success("🏆 Tweet 2 has a higher positivity score!")
+
+            # ── ✨ FREE AI COMPARISON COMMENTARY ──────────────────────────
+            st.markdown("---")
+            st.subheader("🤖 AI's Commentary on the Battle")
+            with st.spinner("✨ AI is judging both tweets..."):
+                comp_commentary = get_ai_comparison_commentary(tweet1, label1, tweet2, label2)
+            st.markdown(
+                f"<div style='background:linear-gradient(135deg,rgba(123,47,255,0.15),rgba(191,127,255,0.08)); border:1px solid #7b2fff; border-left:5px solid #bf7fff; border-radius:12px; padding:18px 20px; margin-top:10px; box-shadow:0 0 20px #7b2fff33; font-family:Share Tech Mono,monospace; font-size:15px; line-height:1.7; color:#e0ccff;'>⚔️ {comp_commentary}</div>",
+                unsafe_allow_html=True
+            )
 
             st.markdown("---"); st.subheader("📉 Confidence Comparison Chart")
             classes = list(lb.classes_); x = np.arange(len(classes)); width = 0.35
