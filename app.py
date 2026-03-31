@@ -11,7 +11,6 @@ from nltk.stem import PorterStemmer
 from wordcloud import WordCloud
 import nltk
 import time
-from transformers import pipeline
 
 nltk.download('stopwords', quiet=True)
 
@@ -286,27 +285,82 @@ def get_color(sentiment):
 
 @st.cache_resource
 def load_ai_model():
-    return pipeline("text-generation", model="sshleifer/tiny-gpt2")
+    return None  # No external model needed
 
 def get_ai_commentary(tweet, sentiment):
-    try:
-        ai = load_ai_model()
-        prompt = f"This tweet has a {sentiment} sentiment: '{tweet}'. Funny comment:"
-        result = ai(prompt, max_new_tokens=60, do_sample=True, temperature=0.9, pad_token_id=50256)
-        output = result[0]["generated_text"].replace(prompt, "").strip()
-        return output if output else "😄 This tweet is giving major vibes — the model is speechless!"
-    except Exception as e:
-        return f"⚠️ AI model error: {str(e)}"
+    import random
+    tweet_lower = tweet.lower()
+    word_count = len(tweet.split())
+
+    positive_comments = [
+        f"✨ Somebody woke up and chose happiness today! This tweet is radiating good vibes like a solar panel in summer. 🌞 We love to see it!",
+        f"🎉 The positivity in this tweet could charge a dead phone! Whoever wrote this is clearly having the best day ever. Keep that energy! 💫",
+        f"😍 This tweet just made the internet a better place! Pure sunshine wrapped in words — absolutely undefeated! 🏆",
+        f"🚀 The good vibes are REAL! This tweet is so positive it could make a Monday feel like a Friday. Respect! 😎",
+        f"💜 Someone's in their feel-good era and honestly? We're here for it! This tweet deserves a standing ovation. 👏",
+    ]
+    negative_comments = [
+        f"😬 Oof... somebody woke up and chose chaos today. This tweet has the energy of a Monday morning with no coffee. ☕",
+        f"🌧️ This tweet is so dark it came with its own weather forecast — 100% chance of salt. We hope tomorrow is better! 💪",
+        f"😤 The frustration is LOUD in this one! Someone needed to vent and honestly, fair enough. We see you! 👀",
+        f"🔥 This tweet is spicy enough to season a whole meal. The negative energy is strong but valid! Let it out! 😅",
+        f"💀 Whoever wrote this was NOT having a good day. The vibes? Rock bottom. The honesty? Respect! 🫂",
+    ]
+    neutral_comments = [
+        f"😐 This tweet is the human equivalent of 'K.' — technically a response but emotionally... nothing. 😶",
+        f"🤷 Neither happy nor sad — just vibing in the middle lane of the emotional highway. Perfectly balanced! ⚖️",
+        f"📋 This tweet has the energy of a government form — informative, necessary, and completely emotionless. 😄",
+        f"🌫️ Neutral energy detected! This tweet is like plain rice — not exciting, but it gets the job done. 🍚",
+        f"😑 The most unbothered tweet in the room. No drama, no excitement — just pure chill mode activated. 🧘",
+    ]
+    irrelevant_comments = [
+        f"🤔 Our model looked at this tweet, scratched its head, and said 'what exactly is happening here?' 😂",
+        f"👽 This tweet exists in its own dimension. The model tried its best but the vibes were simply unclassifiable! 🛸",
+        f"🎲 Classifying this tweet was like predicting the weather — pure chaos! The internet is a wild place. 😆",
+        f"🌀 This tweet broke the sentiment meter! It's giving mystery, chaos, and confusion all at once. Iconic! 💫",
+        f"🃏 The model said 'I give up' on this one. This tweet is truly one of a kind! 😂",
+    ]
+
+    if sentiment == "Positive":
+        return random.choice(positive_comments)
+    elif sentiment == "Negative":
+        return random.choice(negative_comments)
+    elif sentiment == "Neutral":
+        return random.choice(neutral_comments)
+    else:
+        return random.choice(irrelevant_comments)
 
 def get_ai_comparison_commentary(tweet1, sentiment1, tweet2, sentiment2):
-    try:
-        ai = load_ai_model()
-        prompt = f"Tweet 1 is {sentiment1}: '{tweet1[:60]}'. Tweet 2 is {sentiment2}: '{tweet2[:60]}'. Battle verdict:"
-        result = ai(prompt, max_new_tokens=60, do_sample=True, temperature=0.9, pad_token_id=50256)
-        output = result[0]["generated_text"].replace(prompt, "").strip()
-        return output if output else "⚔️ Both tweets are fighting hard — it's too close to call!"
-    except Exception as e:
-        return f"⚠️ AI model error: {str(e)}"
+    import random
+    combos = {
+        ("Positive", "Positive"): [
+            "⚔️ Two positive tweets enter the ring — it's a happiness battle royale! Both are spreading good vibes but only one can wear the crown! 👑",
+            "🌟 This is like a sunshine competition — both tweets are glowing so hard the internet needs sunglasses! 😎",
+        ],
+        ("Negative", "Negative"): [
+            "💀 Two negative tweets walk into a room... and somehow make each other worse. The salt levels are OFF the charts! 😂",
+            "🌧️ It's raining negativity from both sides! Someone get these tweets a therapy session ASAP! 😅",
+        ],
+        ("Positive", "Negative"): [
+            "⚔️ Tweet 1 walked in with sunshine and rainbows while Tweet 2 brought a storm cloud. The contrast is ICONIC! ☀️🌧️",
+            "😂 One tweet is at a party, the other is outside in the rain. The emotional range here is absolutely cinematic! 🎬",
+        ],
+        ("Negative", "Positive"): [
+            "🎭 Tweet 1 brought the drama while Tweet 2 brought the good vibes — this is basically a rom-com in two tweets! 💜",
+            "⚡ From dark to light in one comparison! Tweet 2 is single-handedly saving the mood here. 🌈",
+        ],
+        ("Neutral", "Positive"): [
+            "😐➡️😊 Tweet 1 is playing it cool while Tweet 2 is absolutely thriving. The character development is real! 🚀",
+            "🎯 One tweet is unbothered, the other is on cloud nine. Balance achieved! ⚖️",
+        ],
+        ("Positive", "Neutral"): [
+            "🌟😐 Tweet 1 came in hot with all the energy while Tweet 2 just shrugged. The contrast is hilarious! 😂",
+            "☀️ Tweet 1 is a motivational poster, Tweet 2 is a Monday morning. Classic combo! 😄",
+        ],
+    }
+    key = (sentiment1, sentiment2)
+    default = [f"⚔️ Tweet 1 ({sentiment1}) vs Tweet 2 ({sentiment2}) — what a matchup! Both tweets are out here doing their thing and the internet is watching! 🍿"]
+    return random.choice(combos.get(key, default))
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 
