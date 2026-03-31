@@ -13,7 +13,6 @@ import nltk
 import time
 from transformers import pipeline
 
-
 nltk.download('stopwords', quiet=True)
 
 # ── PAGE CONFIGURATION ───────────────────────────────────────────────────────
@@ -287,23 +286,25 @@ def get_color(sentiment):
 
 @st.cache_resource
 def load_ai_model():
-    return pipeline("text2text-generation", model="google/flan-t5-base")
+    return pipeline("text-generation", model="sshleifer/tiny-gpt2")
 
 def get_ai_commentary(tweet, sentiment):
     try:
         ai = load_ai_model()
-        prompt = f"Write a short funny and witty 2-sentence comment about this tweet that has a {sentiment} sentiment: '{tweet}'"
-        result = ai(prompt, max_new_tokens=80, do_sample=True, temperature=0.9)
-        return result[0]["generated_text"].strip()
+        prompt = f"This tweet has a {sentiment} sentiment: '{tweet}'. Funny comment:"
+        result = ai(prompt, max_new_tokens=60, do_sample=True, temperature=0.9, pad_token_id=50256)
+        output = result[0]["generated_text"].replace(prompt, "").strip()
+        return output if output else "😄 This tweet is giving major vibes — the model is speechless!"
     except Exception as e:
         return f"⚠️ AI model error: {str(e)}"
 
 def get_ai_comparison_commentary(tweet1, sentiment1, tweet2, sentiment2):
     try:
         ai = load_ai_model()
-        prompt = f"Compare these two tweets in a funny way. Tweet 1 is {sentiment1}: '{tweet1}'. Tweet 2 is {sentiment2}: '{tweet2}'."
-        result = ai(prompt, max_new_tokens=80, do_sample=True, temperature=0.9)
-        return result[0]["generated_text"].strip()
+        prompt = f"Tweet 1 is {sentiment1}: '{tweet1[:60]}'. Tweet 2 is {sentiment2}: '{tweet2[:60]}'. Battle verdict:"
+        result = ai(prompt, max_new_tokens=60, do_sample=True, temperature=0.9, pad_token_id=50256)
+        output = result[0]["generated_text"].replace(prompt, "").strip()
+        return output if output else "⚔️ Both tweets are fighting hard — it's too close to call!"
     except Exception as e:
         return f"⚠️ AI model error: {str(e)}"
 
