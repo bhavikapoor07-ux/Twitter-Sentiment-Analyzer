@@ -3,6 +3,8 @@ import streamlit.components.v1 as components
 import numpy as np
 import pickle
 import re
+import csv
+import io
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -11,6 +13,8 @@ from nltk.stem import PorterStemmer
 from wordcloud import WordCloud
 import nltk
 import time
+
+from app_paths import asset_path
 
 nltk.download('stopwords', quiet=True)
 
@@ -30,6 +34,11 @@ if "history" not in st.session_state:
 
 if "dark_mode" not in st.session_state:
     st.session_state.dark_mode = True
+
+def add_to_history(tweet, label, confidence, emoji_result):
+    st.session_state.history.append({"tweet": tweet, "label": label, "confidence": confidence, "emoji": emoji_result})
+    if len(st.session_state.history) > 20:
+        st.session_state.history.pop(0)
 
 # ── THEME COLORS ──────────────────────────────────────────────────────────────
 
@@ -211,9 +220,11 @@ def show_footer():
 
 @st.cache_resource
 def load_everything():
-    model = load_model("sentiment_model.keras")
-    with open("tokenizer.pkl", "rb") as f: tokenizer = pickle.load(f)
-    with open("label_encoder.pkl", "rb") as f: lb = pickle.load(f)
+    model = load_model(asset_path("sentiment_model.keras"))
+    with open(asset_path("tokenizer.pkl"), "rb") as f:
+        tokenizer = pickle.load(f)
+    with open(asset_path("label_encoder.pkl"), "rb") as f:
+        lb = pickle.load(f)
     return model, tokenizer, lb
 
 model, tokenizer, lb = load_everything()
@@ -266,6 +277,25 @@ def detect_toxic(text):
     toxic_words = ["hate","kill","stupid","idiot","dumb","trash","garbage","disgusting","pathetic","worthless","loser","moron","useless","horrible","awful","terrible","despise","worst","ugly","nasty","shut up","get lost","go away","nobody cares","scam","fraud","liar","fake","disgrace","harm"]
     found = [w for w in toxic_words if re.search(rf"\b{re.escape(w)}\b", text.lower())]
     return len(found) > 0, found
+
+def load_tweet_csv(uploaded_file):
+    try:
+        text = uploaded_file.getvalue().decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return [], "Upload a UTF-8 CSV file."
+
+    reader = csv.DictReader(io.StringIO(text))
+    fieldnames = reader.fieldnames or []
+    tweet_column = next((name for name in fieldnames if name.strip().lower() == "tweet"), None)
+    if tweet_column is None:
+        return [], "CSV must include a tweet column."
+
+    rows = []
+    for row_number, row in enumerate(reader, start=2):
+        tweet = (row.get(tweet_column) or "").strip()
+        if tweet:
+            rows.append({"row": row_number, "tweet": tweet})
+    return rows, ""
 
 def detect_mixed_sentiment(text):
     text_lower = text.lower()
@@ -366,7 +396,7 @@ def get_ai_comparison_commentary(tweet1, sentiment1, tweet2, sentiment2):
 
 st.sidebar.title("🐦 Menu")
 st.sidebar.markdown("---")
-page = st.sidebar.radio("Navigate to:", ["📊 Main Analysis", "📜 Recent Analyses", "🥧 Sentiment Pie Chart", "☁️ Word Cloud", "⚖️ Compare Two Tweets"])
+page = st.sidebar.radio("Navigate to:", ["📊 Main Analysis", "📜 Recent Analyses", "🥧 Sentiment Pie Chart", "☁️ Word Cloud", "📂 Batch CSV Analysis", "⚖️ Compare Two Tweets"])
 st.sidebar.markdown("---")
 theme_label = "☀️ Switch to Light Mode" if st.session_state.dark_mode else "🌙 Switch to Dark Mode"
 if st.sidebar.button(theme_label, use_container_width=True):
@@ -402,8 +432,7 @@ if page == "📊 Main Analysis":
                 label, scores = predict_sentiment(tweet_input)
                 emoji_result, emoji_scores = detect_emoji_sentiment(tweet_input)
 
-            st.session_state.history.append({"tweet": tweet_input, "label": label, "confidence": float(np.max(scores)) * 100, "emoji": emoji_result})
-            if len(st.session_state.history) > 20: st.session_state.history.pop(0)
+            add_to_history(tweet_input, label, float(np.max(scores)) * 100, emoji_result)
 
             st.markdown("---")
             st.subheader("📊 Result")
@@ -540,7 +569,71 @@ elif page == "☁️ Word Cloud":
     show_footer()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 5 — COMPARE TWO TWEETS
+# PAGE 5 - BATCH CSV ANALYSIS
+# ══════════════════════════════════════════════════════════════════════════════
+
+elif page == "📂 Batch CSV Analysis":
+    st.title("📂 Batch CSV Analysis")
+    st.markdown("Upload a CSV with a `tweet` column to analyze multiple tweets at once.")
+    st.markdown("---")
+    uploaded_file = st.file_uploader("Upload tweet CSV", type=["csv"])
+    st.caption("Tip: exports from TweetClaw, the X API, or any scraper work when the tweet text is in a `tweet` column.")
+
+    if uploaded_file is not None:
+        rows, csv_error = load_tweet_csv(uploaded_file)
+        if csv_error:
+            st.error(csv_error)
+        elif not rows:
+            st.warning("No tweet rows found in the CSV.")
+        else:
+            st.success(f"Loaded {len(rows)} tweet(s). The first 100 rows will be analyzed.")
+            preview_rows = [{"row": row["row"], "tweet": row["tweet"][:120]} for row in rows[:5]]
+            st.dataframe(preview_rows, use_container_width=True)
+
+            if st.button("📂 Analyze CSV", use_container_width=True):
+                results = []
+                with st.spinner("Analyzing uploaded tweets..."):
+                    for row in rows[:100]:
+                        tweet = row["tweet"]
+                        is_toxic, toxic_found = detect_toxic(tweet)
+                        if is_toxic:
+                            results.append({
+                                "row": row["row"],
+                                "tweet": tweet,
+                                "sentiment": "Blocked",
+                                "confidence": "",
+                                "emoji": "",
+                                "sarcasm": detect_sarcasm(tweet),
+                                "toxic_words": ", ".join(toxic_found),
+                            })
+                            continue
+
+                        label, scores = predict_sentiment(tweet)
+                        emoji_result, _ = detect_emoji_sentiment(tweet)
+                        confidence = float(np.max(scores)) * 100
+                        add_to_history(tweet, label, confidence, emoji_result)
+                        results.append({
+                            "row": row["row"],
+                            "tweet": tweet,
+                            "sentiment": label,
+                            "confidence": f"{confidence:.2f}",
+                            "emoji": emoji_result,
+                            "sarcasm": detect_sarcasm(tweet),
+                            "toxic_words": "",
+                        })
+
+                st.markdown("---")
+                st.subheader("📊 Batch Results")
+                st.dataframe(results, use_container_width=True)
+                output = io.StringIO()
+                writer = csv.DictWriter(output, fieldnames=["row", "tweet", "sentiment", "confidence", "emoji", "sarcasm", "toxic_words"])
+                writer.writeheader()
+                writer.writerows(results)
+                st.download_button("⬇️ Download Results CSV", output.getvalue(), "tweet_sentiment_results.csv", "text/csv", use_container_width=True)
+    show_footer()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 6 - COMPARE TWO TWEETS
 # ══════════════════════════════════════════════════════════════════════════════
 
 elif page == "⚖️ Compare Two Tweets":
