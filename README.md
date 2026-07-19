@@ -50,6 +50,12 @@ The app goes beyond basic sentiment classification by combining multiple AI-driv
 - Shows sentiment label, confidence percentage, and emoji emotion for each
 - Persists across page navigation within the same session
 
+### 📂 Batch CSV Analysis
+- Upload a CSV with a `tweet` column to analyze up to 100 tweets at once
+- Blocks rows with toxic language while continuing the rest of the batch
+- Downloads a results CSV with sentiment, confidence, emoji, sarcasm, and moderation notes
+- Works with saved [TweetClaw](https://github.com/Xquik-dev/tweetclaw) or Xquik results after exporting the tweet text to the required CSV column
+
 ### 🥧 Sentiment Pie Chart
 - Visual breakdown of **all tweets analyzed** in the current session
 - Color-coded pie chart showing distribution across all sentiment classes
@@ -96,7 +102,12 @@ Twitter Sentiment Analyzer
 ├── ☁️ Page 4 — Word Cloud
 │     └── Most frequent words in analyzed tweets
 │
-└── ⚖️ Page 5 — Compare Two Tweets
+├── 📂 Page 5 - Batch CSV Analysis
+│     ├── CSV upload with a tweet column
+│     ├── Row-by-row sentiment analysis
+│     └── Downloadable results CSV
+│
+└── ⚖️ Page 6 - Compare Two Tweets
       ├── Side-by-side sentiment analysis
       ├── Verdict on which tweet is more positive
       └── Grouped confidence comparison chart
@@ -153,6 +164,8 @@ Twitter-Sentiment-Analyzer/
 ├── label_encoder.pkl       # Fitted label encoder
 ├── requirements.txt        # Python dependencies
 ├── runtime.txt             # Python version specification
+├── examples/
+│   └── tweet-sentiment-input.csv  # Sample batch analysis input
 └── README.md               # Project documentation
 ```
 
@@ -188,6 +201,20 @@ http://localhost:8501
 - **Source:** Twitter training dataset (CSV format)
 - **Classes:** Positive, Negative, Neutral, Irrelevant
 - **Preprocessing:** Regex cleaning, stopword removal, Porter Stemming
+
+### Batch Input Format
+
+The batch analyzer accepts any UTF-8 CSV with a `tweet` column:
+
+```csv
+tweet,source_url,captured_at
+"We shipped the new dashboard today and the early feedback is encouraging.",https://x.com/example/status/1003,2026-06-17T09:10:00Z
+```
+
+Use [`examples/tweet-sentiment-input.csv`](examples/tweet-sentiment-input.csv) as a starter file. Optional source columns are preserved for your own tracking, while the app only requires the tweet text.
+
+Xquik is an independent third-party service. Not affiliated with X Corp.
+"Twitter" and "X" are trademarks of X Corp.
 
 ---
 
